@@ -219,14 +219,15 @@ def add_forward_strand(input_file_name, output_file):
     write_solution(output_file, output_sequence)
     input_file.close()
 
-def preprocess_genome(input_files, file_num, output_file_name, strands_to_add):
+def preprocess_genome(input_files, file_num, output_file_name, strands_to_add, increment_size):
 
     output_file = open(output_file_name, "a")
-    output_file.write("\n>concat_genome\n")
-    add_forward_strand(input_files[file_num], output_file) 
-    if strands_to_add == 1:
-        output_file.write("\n>concat_genome\n")
-        add_reverse_comp_strand(input_files[file_num], output_file)
+    for i in range(0, increment_size):
+    	#output_file.write("\n>concat_genome\n")
+    	add_forward_strand(input_files[file_num+i], output_file) 
+    	if strands_to_add == 1:
+            #output_file.write("\n>concat_genome\n")
+            add_reverse_comp_strand(input_files[file_num+i], output_file)
     output_file.close()
 
 def generate_data(args, input_file_list):
@@ -235,19 +236,20 @@ def generate_data(args, input_file_list):
 	    log_file_name = ""
     else:
 	    log_file_name = args.log_file_name[0]
-
-    for num_file in range(0, args.num_genomes[0]):   
+   
+    
+    for num_file in range(0, args.num_genomes[0], args.increment_size[0]):   
         
-        preprocess_genome(input_file_list, num_file, args.genome_file[0], args.strands_info[0])
+        preprocess_genome(input_file_list, num_file, args.genome_file[0], args.strands_info[0], args.increment_size[0])
 
         if args.measure_chosen[0] == 'r':
             user_time, system_time, elapsed_time, n, r  = find_r(args.output_bwt_dir[0], args.genome_file[0], log_file_name)
-            output_str = "\'Genomes_Added= {} user_time= {} system_time= {} elapsed_time= {} n= {} r= {}\'".format(str(num_file+1), user_time, system_time, elapsed_time, n, r)
+            output_str = "\'Genomes_Added= {} user_time= {} system_time= {} elapsed_time= {} n= {} r= {}\'".format(str(num_file+args.increment_size[0]), user_time, system_time, elapsed_time, n, r)
 	    os.popen('echo ' + output_str + ' >> ' + args.output_file_name[0])
     	elif args.measure_chosen[0] == 'd':
             optimal_k, delta_value, num_calls_to_find, user_time, system_time, elapsed_time = find_delta_binarysearch(max(1, args.kmer_seed[0]-10), args.kmer_seed[0]+10, args.genome_file[0], args.canon, log_file_name)
             args.kmer_seed = [optimal_k]
-	    output_str = "\'Genomes_Added= {} user_time= {} system_time= {} elapsed_time= {} kmer_optimal= {} delta= {}\'".format(str(num_file+1), user_time, system_time, elapsed_time,optimal_k, delta_value)
+	    output_str = "\'Genomes_Added= {} user_time= {} system_time= {} elapsed_time= {} kmer_optimal= {} delta= {}\'".format(str(num_file+args.increment_size[0]), user_time, system_time, elapsed_time,optimal_k, delta_value)
             os.popen('echo ' + output_str + ' >> ' + args.output_file_name[0])
 
 def validate_arguments(args):
@@ -291,6 +293,10 @@ def validate_arguments(args):
         print("[Error] No input genomes were provided.")
         exit(-1)
     
+    if args.increment_size[0] < 1 or args.increment_size[0] > len(input_file_list):
+        print("[Error] Not a valid increment size")
+	exit(-1)
+
     if args.num_genomes[0] > len(input_file_list):
         print("[Error] Only {} genome(s) were provided, while {} were requested to added.".format(len(input_file_list), args.num_genomes[0]))
         exit(-1)
@@ -333,7 +339,7 @@ def arguments():
     parser.add_argument("--seed", dest="kmer_seed", default= [-1], required= False, nargs= 1, type= int, help= "When using Delta measure, provide a seed value to start the delta search.")
     parser.add_argument("-l", dest="log_file_name", required=True, nargs= 1, help= "Name of log file, output from underlying used programs")
     parser.add_argument("-g", dest= "genome_file", required= True, nargs=1, help= "Name of the genome fasta file that will be created.")
-    parser
+    parser.add_argument("--increment", dest= "increment_size", type=int, required=True, nargs=1, help="Number of genomes that will be added before each calculation.")
     args = parser.parse_args()
     return args
 
