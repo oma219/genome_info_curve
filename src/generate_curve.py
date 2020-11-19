@@ -145,7 +145,7 @@ def find_delta_binarysearch(start_k, end_k, input_genome_path, canon, log_file_n
 
 def find_r(output_bwt_dir, output_genome_name, log_file_name):
     output_prefix = output_bwt_dir + "output"
-    stream = Popen("/software/centos7/bin/time --format='user= %U system= %S elapsed= %e' pfbwt-f64 -o " + output_prefix + " " + output_genome_name, shell=True, stdout=PIPE, stderr=PIPE)
+    stream = Popen("/software/centos7/bin/time --format='user= %U system= %S elapsed= %e MemMax= %M' pfbwt-f64 -o " + output_prefix + " " + output_genome_name, shell=True, stdout=PIPE, stderr=PIPE)
     stdout, stderr = stream.communicate()
     
     if log_file_name != "":
@@ -153,16 +153,17 @@ def find_r(output_bwt_dir, output_genome_name, log_file_name):
     
     try:
 	stderr_split = stderr.split()
-	user_time = float(stderr_split[-5])
-	system_time = float(stderr_split[-3])
-	elapsed_time = float(stderr_split[-1])
-	n = float(stderr_split[-11])
-	r = float(stderr_split[-9])
+	user_time = float(stderr_split[-7])
+	system_time = float(stderr_split[-5])
+	elapsed_time = float(stderr_split[-3])
+	mem_max = float(stderr_split[-1])
+	n = float(stderr_split[-13])
+	r = float(stderr_split[-11])
     except:
  	print("[Error] It appears an error occurred with pfbwt, please check log.")
 	exit(-1)
-
-    return [user_time, system_time, elapsed_time, n, r]
+    
+    return [user_time, system_time, elapsed_time, n, r, mem_max]
 
 def write_solution(output_file, sequence, per_line=60):
     offset = 0
@@ -243,8 +244,8 @@ def generate_data(args, input_file_list):
         preprocess_genome(input_file_list, num_file, args.genome_file[0], args.strands_info[0], args.increment_size[0])
 
         if args.measure_chosen[0] == 'r':
-            user_time, system_time, elapsed_time, n, r  = find_r(args.output_bwt_dir[0], args.genome_file[0], log_file_name)
-            output_str = "\'Genomes_Added= {} user_time= {} system_time= {} elapsed_time= {} n= {} r= {}\'".format(str(num_file+args.increment_size[0]), user_time, system_time, elapsed_time, n, r)
+            user_time, system_time, elapsed_time, n, r, mem_max  = find_r(args.output_bwt_dir[0], args.genome_file[0], log_file_name)
+            output_str = "\'Genomes_Added= {} user_time= {} system_time= {} elapsed_time= {} MemMax = {} n= {} r= {}\'".format(str(num_file+args.increment_size[0]), user_time, system_time, elapsed_time, mem_max, n, r)
 	    os.popen('echo ' + output_str + ' >> ' + args.output_file_name[0])
     	elif args.measure_chosen[0] == 'd':
             optimal_k, delta_value, num_calls_to_find, user_time, system_time, elapsed_time = find_delta_binarysearch(max(1, args.kmer_seed[0]-10), args.kmer_seed[0]+10, args.genome_file[0], args.canon, log_file_name)
