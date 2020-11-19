@@ -30,13 +30,15 @@ def get_optimal_ratio(start_k, start_points, mid_k,  mid_points,end_k, end_point
 def extract_result_values(stdout_split, stderr_split):
     try:
         cardinality = float(stdout_split[-1])
-	elapsed_time = float(stderr_split[-1])
-	system_time = float(stderr_split[-3])
-	user_time = float(stderr_split[-5])
+	elapsed_time = float(stderr_split[-3])
+	system_time = float(stderr_split[-5])
+	user_time = float(stderr_split[-7])
+	mem_max = float(stderr_split[-1])
     except:
 	print("[Error] It appears an error occurred with dashing, check log file.")
 	exit(-1)
-    return [cardinality, user_time, system_time, elapsed_time]
+
+    return [cardinality, user_time, system_time, elapsed_time, mem_max]
 
 def find_delta_binarysearch(start_k, end_k, input_genome_path, canon, log_file_name):
     
@@ -48,7 +50,8 @@ def find_delta_binarysearch(start_k, end_k, input_genome_path, canon, log_file_n
     total_user_time = 0.0
     total_system_time = 0.0
     total_elapsed_time = 0.0
-
+    total_memory = 0.0
+   
     canon_option = ""
     if not canon:
         canon_option = " --no-canon "
@@ -68,14 +71,15 @@ def find_delta_binarysearch(start_k, end_k, input_genome_path, canon, log_file_n
         for i in range(points_needed):
             if (start_k+i) not in memo:
                 num_calls += 1
-	        stream = Popen("/software/centos7/bin/time --format='user= %U system= %S elapsed= %e' cardcmp -k " + str(start_k+i) + ' -S 14  --use-cyclic-hash ' +  canon_option  + input_genome_path, shell=True, stdout=PIPE, stderr=PIPE)
+	        stream = Popen("/software/centos7/bin/time --format='user= %U system= %S elapsed= %e MemMax= %M' cardcmp -k " + str(start_k+i) + ' -S 14  --use-cyclic-hash ' +  canon_option  + input_genome_path, shell=True, stdout=PIPE, stderr=PIPE)
 	        stdout, stderr = stream.communicate()
 		os.popen('echo \" ' + stdout + stderr + ' \"  >> ' + log_file_name)
-		cardinality, user_time, system_time, elapsed_time = extract_result_values(stdout.split(), stderr.split()) 
+		cardinality, user_time, system_time, elapsed_time, mem_max  = extract_result_values(stdout.split(), stderr.split()) 
 		total_user_time += user_time
 		total_system_time += system_time
 		total_elapsed_time += elapsed_time
-
+		total_memory += mem_max
+	
 	        curr_ratio = cardinality/(start_k + i + 0.0)
                 memo[(start_k+i)] = curr_ratio
             else:
@@ -86,13 +90,14 @@ def find_delta_binarysearch(start_k, end_k, input_genome_path, canon, log_file_n
 	for i in range(points_needed):
             if (end_k+i) not in memo:
                 num_calls += 1
-	        stream = Popen("/software/centos7/bin/time --format='user= %U system= %S elapsed= %e' cardcmp -k " + str(end_k+i) + ' -S 14  --use-cyclic-hash ' +  canon_option  +  input_genome_path, shell=True, stdout=PIPE, stderr=PIPE )
+	        stream = Popen("/software/centos7/bin/time --format='user= %U system= %S elapsed= %e MemMax= %M' cardcmp -k " + str(end_k+i) + ' -S 14  --use-cyclic-hash ' +  canon_option  +  input_genome_path, shell=True, stdout=PIPE, stderr=PIPE )
 	        stdout, stderr = stream.communicate()
 		os.popen('echo \" ' + stdout + stderr + ' \"  >> ' + log_file_name)
-		cardinality, user_time, system_time, elapsed_time = extract_result_values(stdout.split(), stderr.split())
+		cardinality, user_time, system_time, elapsed_time, mem_max  = extract_result_values(stdout.split(), stderr.split())
 		total_user_time += user_time
 		total_system_time += system_time
 		total_elapsed_time += elapsed_time
+		total_memory += mem_max
 
 	        curr_ratio = cardinality/(end_k + i + 0.0)
                 memo[(end_k+i)] = curr_ratio
@@ -105,13 +110,14 @@ def find_delta_binarysearch(start_k, end_k, input_genome_path, canon, log_file_n
 	    for i in range(points_needed):
                 if (mid_k+i) not in memo:
                     num_calls += 1
-		    stream = Popen("/software/centos7/bin/time --format='user= %U system= %S elapsed= %e' cardcmp -k " + str(mid_k+i) + ' -S 14  --use-cyclic-hash ' +  canon_option  +  input_genome_path, shell=True, stdout=PIPE, stderr=PIPE )
+		    stream = Popen("/software/centos7/bin/time --format='user= %U system= %S elapsed= %e MemMax= %M' cardcmp -k " + str(mid_k+i) + ' -S 14  --use-cyclic-hash ' +  canon_option  +  input_genome_path, shell=True, stdout=PIPE, stderr=PIPE )
 		    stdout, stderr = stream.communicate()
 		    os.popen('echo \" ' + stdout + stderr + ' \"  >> ' + log_file_name)
-		    cardinality, user_time, system_time, elapsed_time = extract_result_values(stdout.split(), stderr.split())
+		    cardinality, user_time, system_time, elapsed_time, mem_max  = extract_result_values(stdout.split(), stderr.split())
 		    total_user_time += user_time
 		    total_system_time += system_time
 		    total_elapsed_time += elapsed_time
+		    total_memory += mem_max
 
 		    curr_ratio = cardinality/(mid_k + i + 0.0)
                     memo[(mid_k+i)] = curr_ratio
@@ -140,8 +146,8 @@ def find_delta_binarysearch(start_k, end_k, input_genome_path, canon, log_file_n
 	        start_k = mid_k
 		mid_k = math.floor((end_k + start_k) / 2)
 
-
-    return [optimal_k, delta_value, num_calls, total_user_time, total_system_time, total_elapsed_time]
+    avg_memory = total_memory/num_calls
+    return [optimal_k, delta_value, num_calls, total_user_time, total_system_time, total_elapsed_time, avg_memory]
 
 def find_r(output_bwt_dir, output_genome_name, log_file_name):
     output_prefix = output_bwt_dir + "output"
@@ -245,12 +251,12 @@ def generate_data(args, input_file_list):
 
         if args.measure_chosen[0] == 'r':
             user_time, system_time, elapsed_time, n, r, mem_max  = find_r(args.output_bwt_dir[0], args.genome_file[0], log_file_name)
-            output_str = "\'Genomes_Added= {} user_time= {} system_time= {} elapsed_time= {} MemMax = {} n= {} r= {}\'".format(str(num_file+args.increment_size[0]), user_time, system_time, elapsed_time, mem_max, n, r)
+            output_str = "\'Genomes_Added= {} user_time= {} system_time= {} elapsed_time= {} MemMax= {} n= {} r= {}\'".format(str(num_file+args.increment_size[0]), user_time, system_time, elapsed_time, mem_max, n, r)
 	    os.popen('echo ' + output_str + ' >> ' + args.output_file_name[0])
     	elif args.measure_chosen[0] == 'd':
-            optimal_k, delta_value, num_calls_to_find, user_time, system_time, elapsed_time = find_delta_binarysearch(max(1, args.kmer_seed[0]-10), args.kmer_seed[0]+10, args.genome_file[0], args.canon, log_file_name)
+            optimal_k, delta_value, num_calls_to_find, user_time, system_time, elapsed_time, mem_max  = find_delta_binarysearch(max(1, args.kmer_seed[0]-10), args.kmer_seed[0]+10, args.genome_file[0], args.canon, log_file_name)
             args.kmer_seed = [optimal_k]
-	    output_str = "\'Genomes_Added= {} user_time= {} system_time= {} elapsed_time= {} kmer_optimal= {} delta= {}\'".format(str(num_file+args.increment_size[0]), user_time, system_time, elapsed_time,optimal_k, delta_value)
+	    output_str = "\'Genomes_Added= {} user_time= {} system_time= {} elapsed_time= {} MemMax= {}  kmer_optimal= {} delta= {}\'".format(str(num_file+args.increment_size[0]), user_time, system_time, elapsed_time, mem_max, optimal_k, delta_value)
             os.popen('echo ' + output_str + ' >> ' + args.output_file_name[0])
 
 def validate_arguments(args):
