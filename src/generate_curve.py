@@ -40,7 +40,38 @@ def extract_result_values(stdout_split, stderr_split):
 
     return [cardinality, user_time, system_time, elapsed_time, mem_max]
 
-def find_delta_binarysearch(start_k, end_k, input_genome_path, canon, log_file_name):
+
+
+def delta_peak_changed(kmer_seed, canon_option, input_genome_path, log_file_name):
+    cardinality_list = [0.0 for i in range(3)]
+    time_stats = [0 for i in range(3)]
+    total_memory = 0.0
+    kmer_seed = int(kmer_seed)
+
+    #Check cardinality at k-1, k, k+1
+    for k_value in range(kmer_seed-1, kmer_seed+2):
+        stream = Popen("/software/centos7/bin/time --format='user= %U system= %S elapsed= %e MemMax= %M' cardcmp -k " + str(k_value) + ' -S 14  --use-cyclic-hash ' +  canon_option  + input_genome_path, shell=True, stdout=PIPE, stderr=PIPE)
+        stdout, stderr = stream.communicate()
+	os.popen('echo \" ' + stdout + stderr + ' \"  >> ' + log_file_name)
+	cardinality, user_time, system_time, elapsed_time, mem_max  = extract_result_values(stdout.split(), stderr.split())
+        cardinality_list[k_value - (kmer_seed-1)] = cardinality/k_value
+	time_stats[0] += user_time
+	time_stats[1] += system_time
+	time_stats[2] += elapsed_time 
+	total_memory += mem_max
+    
+    avg_memory = total_memory / 3
+     
+    if max(cardinality_list) == cardinality_list[1]:
+	unchanged = True
+    else:
+	unchanged = False
+    
+    return [unchanged, cardinality_list[1], time_stats[0], time_stats[1], time_stats[2], avg_memory]
+
+
+
+def find_delta_binarysearch(start_k, end_k, kmer_seed, input_genome_path, canon, log_file_name):
     
     num_calls = 0
     memo = {}
@@ -55,6 +86,17 @@ def find_delta_binarysearch(start_k, end_k, input_genome_path, canon, log_file_n
     canon_option = ""
     if not canon:
         canon_option = " --no-canon "
+    
+
+    unchanged, cardinality_precheck, user_time_precheck, system_time_precheck, elapsed_time_precheck, mem_max_precheck = delta_peak_changed(kmer_seed, canon_option, input_genome_path, log_file_name)
+    
+    if unchanged:
+	return [kmer_seed, cardinality_precheck, 3, user_time_precheck, system_time_precheck, elapsed_time_precheck, mem_max_precheck]
+    else:
+	total_user_time += user_time_precheck
+	total_system_time += system_time_precheck
+	total_elapsed_time += elapsed_time_precheck
+
 
     while not converged:
         iteration_num += 1 
@@ -198,7 +240,7 @@ def add_reverse_comp_strand(input_file_name, output_file):
                  output_ch = "N"
             else:
                 output_ch = ""
-            output_str += output_ch
+	    output_str += output_ch
         if '>' in line:
 	    reverse_comp = output_str[::-1]
 	    write_solution(output_file, reverse_comp)
@@ -254,7 +296,7 @@ def generate_data(args, input_file_list):
             output_str = "\'Genomes_Added= {} user_time= {} system_time= {} elapsed_time= {} MemMax= {} n= {} r= {}\'".format(str(num_file+args.increment_size[0]), user_time, system_time, elapsed_time, mem_max, n, r)
 	    os.popen('echo ' + output_str + ' >> ' + args.output_file_name[0])
     	elif args.measure_chosen[0] == 'd':
-            optimal_k, delta_value, num_calls_to_find, user_time, system_time, elapsed_time, mem_max  = find_delta_binarysearch(max(1, args.kmer_seed[0]-10), args.kmer_seed[0]+10, args.genome_file[0], args.canon, log_file_name)
+            optimal_k, delta_value, num_calls_to_find, user_time, system_time, elapsed_time, mem_max  = find_delta_binarysearch(max(1, args.kmer_seed[0]-10), args.kmer_seed[0]+10, args.kmer_seed[0], args.genome_file[0], args.canon, log_file_name)
             args.kmer_seed = [optimal_k]
 	    output_str = "\'Genomes_Added= {} user_time= {} system_time= {} elapsed_time= {} MemMax= {}  kmer_optimal= {} delta= {}\'".format(str(num_file+args.increment_size[0]), user_time, system_time, elapsed_time, mem_max, optimal_k, delta_value)
             os.popen('echo ' + output_str + ' >> ' + args.output_file_name[0])
