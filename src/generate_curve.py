@@ -6,6 +6,7 @@ Author: Omar Ahmed
 """
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 
+import random
 import argparse
 import os
 import sys
@@ -228,6 +229,7 @@ def add_reverse_comp_strand(input_file_name, output_file):
     #Generate a complement of the string
     for line in input_file:        
         for ch in line:
+	    ch = ch.upper()
             if ch == 'A':
                 output_ch = 'T'
             elif ch == 'C':
@@ -236,16 +238,18 @@ def add_reverse_comp_strand(input_file_name, output_file):
                 output_ch = 'C'
             elif ch == 'T':
                 output_ch = 'A'
-            elif ch == 'N':
-                 output_ch = "N"
-            else:
-                output_ch = ""
+            elif ch == 'R':
+                 output_ch = random.choice(['T', 'C'])
+            elif ch == 'Y':
+		 output_ch = random.choice(['G', 'A'])
+	    elif ch == '>':
+		 reverse_comp = output_str[::-1]
+		 write_solution(output_file, reverse_comp)
+		 output_str = ""
+		 output_file.write(line + "\n")
+        	 break
+
 	    output_str += output_ch
-        if '>' in line:
-	    reverse_comp = output_str[::-1]
-	    write_solution(output_file, reverse_comp)
-	    output_str = ""
-	    output_file.write(line + "\n")
     
     #Get the reverse complement and write it
     reverse_comp = output_str[::-1]
@@ -258,12 +262,18 @@ def add_forward_strand(input_file_name, output_file):
     output_sequence = ""
     for line in input_file:
         for ch in line:
+	    ch = ch.upper()
             if ch in 'ACGTN':
                 output_sequence += ch
-	if '>' in line:
-	    write_solution(output_file, output_sequence)
-	    output_sequence = ""
-	    output_file.write(line + "\n")
+	    elif ch == 'R':
+		output_sequence += random.choice(['A', 'G'])
+	    elif ch == 'Y':
+		output_sequence += random.choice(['C', 'T'])
+	    elif ch == '>':
+		write_solution(output_file, output_sequence)
+		output_sequence = ""
+		output_file.write(line + "\n")
+		break
 
     write_solution(output_file, output_sequence)
     input_file.close()
