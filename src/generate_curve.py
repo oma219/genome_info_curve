@@ -231,25 +231,25 @@ def add_reverse_comp_strand(input_file_name, output_file):
         for ch in line:
 	    ch = ch.upper()
             if ch == 'A':
-                output_ch = 'T'
+                output_str += 'T'
             elif ch == 'C':
-                output_ch = 'G'
+                output_str += 'G'
             elif ch == 'G':
-                output_ch = 'C'
+                output_str += 'C'
             elif ch == 'T':
-                output_ch = 'A'
+                output_str += 'A'
             elif ch == 'R':
-                 output_ch = random.choice(['T', 'C'])
+                output_str += random.choice(['T', 'C'])
             elif ch == 'Y':
-		 output_ch = random.choice(['G', 'A'])
+	        output_str += random.choice(['G', 'A'])
 	    elif ch == '>':
-		 reverse_comp = output_str[::-1]
-		 write_solution(output_file, reverse_comp)
-		 output_str = ""
-		 output_file.write(line + "\n")
-        	 break
-
-	    output_str += output_ch
+		reverse_comp = output_str[::-1]
+		write_solution(output_file, reverse_comp)
+		output_str = ""
+		output_file.write(line + "\n")
+        	break
+	    else:
+		output_str += ch
     
     #Get the reverse complement and write it
     reverse_comp = output_str[::-1]
@@ -274,6 +274,8 @@ def add_forward_strand(input_file_name, output_file):
 		output_sequence = ""
 		output_file.write(line + "\n")
 		break
+	    else:
+		output_sequence += ch
 
     write_solution(output_file, output_sequence)
     input_file.close()
