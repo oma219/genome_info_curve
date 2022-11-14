@@ -1,0 +1,33 @@
+###################################################
+# Name: Snakefile
+# Description: Main workflow for running the r/z
+#              experiment
+# Date: 10/31/22
+###################################################
+
+import glob
+import os
+import shutil
+import random
+
+# Import configuration, and needed parameters
+configfile: "config/config.yaml"
+
+base_dir = config["WORK_ROOT"]
+repo_dir = config["REPO_DIRECTORY"]
+r_dir = config["RINDEX_BUILD_DIRECTORY"]
+lz77_dir = config["LZ77_BUILD_DIRECTORY"]
+
+genome_breaks = [x for x in range(2, 102, 2)]
+
+###############################################################################
+# IMPORTANT: Sets the working directory based on configuration parameter, and 
+#            it can be set on command-line using --config WORK_ROOT=""
+###############################################################################
+workdir: config["WORK_ROOT"]
+
+###############################################################################
+# Imports rules for each type of experiment
+###############################################################################
+
+include: "rules/exp_1.smk"
