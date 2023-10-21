@@ -28,7 +28,7 @@ def get_all_genomes_in_dataset_exp1(wildcards):
 
 # Section 3.1: Build the list of genomes, the filelist will be
 # overall ordering used for every reference. The second rule
-# builds a refernce using the first n genomes in the filelist.
+# builds a reference using the first n genomes in the filelist.
 
 rule build_genome_list_exp1:
     input:
@@ -44,7 +44,7 @@ rule build_reference_file_with_x_genomes_exp1:
     input:
         "exp1_filelist/genome_filelist.txt"
     output:
-        "exp1_ref_files/ref_with_{num}_genomes.fna"
+        "exp1_ref_files/forward/ref_with_{num}_genomes.fna"
     shell:
         """
         genomes_included=0
@@ -58,29 +58,63 @@ rule build_reference_file_with_x_genomes_exp1:
         done < {input}
         """
 
+rule build_reference_file_with_x_genomes_incl_revcomp_exp1:
+    input:
+        "exp1_ref_files/forward/ref_with_{num}_genomes.fna"
+    output:
+        "exp1_ref_files/revcomp/ref_with_{num}_genomes.fna"
+    shell:
+        "seqtk seq -r {input} | sed 's/^>/>revcomp_/' > {output}"
+
+rule concat_forward_and_rev_comp_dataset_exp1:
+    input:
+        "exp1_ref_files/forward/ref_with_{num}_genomes.fna",
+        "exp1_ref_files/revcomp/ref_with_{num}_genomes.fna"
+    output:
+        "exp1_ref_files/combined/ref_with_{num}_genomes.fna"
+    shell:
+        "cat {input} > {output}"
+
+rule copy_final_forward_ref_files_exp1:
+    input:
+        "exp1_ref_files/forward/ref_with_{num}_genomes.fna"
+    output:
+        "exp1_final_ref_files/ref_with_{num}_genomes_forward_only.fna"
+    shell:
+        "cp {input} {output}"
+
+rule copy_final_forward_rev_comp_ref_files_exp1:
+    input:
+        "exp1_ref_files/combined/ref_with_{num}_genomes.fna"
+    output:
+        "exp1_final_ref_files/ref_with_{num}_genomes_forward_rev_comp.fna"
+    shell:
+        "cp {input} {output}"
+
+
 # Section 3.2: Builds the BWT and reports the number of runs
 # and the time it took for a specific reference.
 
 rule build_bwt_for_x_genomes_exp1:
     input:
-        "exp1_ref_files/ref_with_{num}_genomes.fna"
+        "exp1_final_ref_files/ref_with_{num}_genomes_{strands}.fna"
     output:
-        "exp1_workspace/{num}_genomes_r/ref_with_{num}_genomes.fna.ri",
-        "exp1_workspace/{num}_genomes_r/ref_with_{num}_genomes.fna.ri.log"
+        "exp1_workspace/{num}_genomes_r_{strands}/ref_with_{num}_genomes.fna.ri",
+        "exp1_workspace/{num}_genomes_r_{strands}/ref_with_{num}_genomes.fna.ri.log"
     shell:
         """
-        cp {input} exp1_workspace/{wildcards.num}_genomes_r/ref_with_{wildcards.num}_genomes.fna
+        cp {input} exp1_workspace/{wildcards.num}_genomes_r_{wildcards.strands}/ref_with_{wildcards.num}_genomes.fna
 
         cd {r_dir} 
-        ri-buildfasta {base_dir}/exp1_workspace/{wildcards.num}_genomes_r/ref_with_{wildcards.num}_genomes.fna > {base_dir}/{output[1]}
+        ri-buildfasta {base_dir}/exp1_workspace/{wildcards.num}_genomes_r_{wildcards.strands}/ref_with_{wildcards.num}_genomes.fna > {base_dir}/{output[1]}
         cd {base_dir}
         """
 
 rule extract_r_data_for_single_reference_exp1:
     input:
-        "exp1_workspace/{num}_genomes_r/ref_with_{num}_genomes.fna.ri.log"
+        "exp1_workspace/{num}_genomes_r_{strands}/ref_with_{num}_genomes.fna.ri.log"
     output:
-        "exp1_raw_data/r_data/ref_{num}_genomes.txt"
+        "exp1_raw_data/r_data_{strands}/ref_{num}_genomes.txt"
     shell:
         """
         time=$(grep "construction time:" {input} | awk '{{print $NF}}')
@@ -93,15 +127,15 @@ rule extract_r_data_for_single_reference_exp1:
 
 rule build_lz77_for_x_genomes_exp1:
     input:
-        "exp1_ref_files/ref_with_{num}_genomes.fna"
+        "exp1_final_ref_files/ref_with_{num}_genomes_{strands}.fna"
     output:
-        "exp1_workspace/{num}_genomes_z/ref_with_{num}_genomes.fna.parse",
-        "exp1_workspace/{num}_genomes_z/ref_with_{num}_genomes.fna.parse.log.1",
-        "exp1_workspace/{num}_genomes_z/ref_with_{num}_genomes.fna.parse.log.2"
+        "exp1_workspace/{num}_genomes_z_{strands}/ref_with_{num}_genomes.fna.parse",
+        "exp1_workspace/{num}_genomes_z_{strands}/ref_with_{num}_genomes.fna.parse.log.1",
+        "exp1_workspace/{num}_genomes_z_{strands}/ref_with_{num}_genomes.fna.parse.log.2"
     shell:
         """
-        cp {input} exp1_workspace/{wildcards.num}_genomes_z/ref_with_{wildcards.num}_genomes.fna
-        inputfasta="{base_dir}/exp1_workspace/{wildcards.num}_genomes_z/ref_with_{wildcards.num}_genomes.fna"
+        cp {input} exp1_workspace/{wildcards.num}_genomes_z_{wildcards.strands}/ref_with_{wildcards.num}_genomes.fna
+        inputfasta="{base_dir}/exp1_workspace/{wildcards.num}_genomes_z_{wildcards.strands}/ref_with_{wildcards.num}_genomes.fna"
 
         cd {lz77_dir}
         _deps/bigbwt-build/newscanNT.x $inputfasta -w 10 -p 100 -f > {base_dir}/{output[1]}
@@ -111,13 +145,12 @@ rule build_lz77_for_x_genomes_exp1:
 
 rule extract_z_data_for_single_reference_exp1:
     input:
-        "exp1_workspace/{num}_genomes_z/ref_with_{num}_genomes.fna.parse.log.1",
-        "exp1_workspace/{num}_genomes_z/ref_with_{num}_genomes.fna.parse.log.2"
+        "exp1_workspace/{num}_genomes_z_{strands}/ref_with_{num}_genomes.fna.parse.log.1",
+        "exp1_workspace/{num}_genomes_z_{strands}/ref_with_{num}_genomes.fna.parse.log.2"
     output:
-        "exp1_raw_data/z_data/ref_{num}_genomes.txt"
+        "exp1_raw_data/z_data_{strands}/ref_{num}_genomes.txt"
     shell:
         """
-        echo "hello" > {output}
         z=$(grep "phrase number" {input[1]} | awk '{{print $NF}}')
         time1=$(grep "Elapsed time" {input[1]} | tail -n1 | awk '{{print $NF}}')
         time2=$(grep "Elapsed time:"  {input[0]} | awk '{{print $4}}')
@@ -131,51 +164,35 @@ rule extract_z_data_for_single_reference_exp1:
 
 rule gather_all_raw_data_for_csv_exp1:
     input:
-        expand("exp1_raw_data/z_data/ref_{num}_genomes.txt", num=genome_breaks),
-        expand("exp1_raw_data/r_data/ref_{num}_genomes.txt", num=genome_breaks)
+        expand("exp1_raw_data/z_data_{strands}/ref_{num}_genomes.txt", num=genome_breaks, strands=["forward_only", "forward_rev_comp"]),
+        expand("exp1_raw_data/r_data_{strands}/ref_{num}_genomes.txt", num=genome_breaks, strands=["forward_only", "forward_rev_comp"])
     output:
         "exp1_final_data/output.csv"
     shell:
         """
-        printf "numgenomes,r,rtime,z,ztime\n" > {output}
+        printf "numgenomes,r,rtime,z,ztime,rwithrevcomp,rwithrevcomptime,zwithrevcomp,zwithrevcomptime\n" > {output}
         for num in {genome_breaks}; do
-            r_file="exp1_raw_data/r_data/ref_${{num}}_genomes.txt"
-            z_file="exp1_raw_data/z_data/ref_${{num}}_genomes.txt"
+            r_file="exp1_raw_data/r_data_forward_only/ref_${{num}}_genomes.txt"
+            z_file="exp1_raw_data/z_data_forward_only/ref_${{num}}_genomes.txt"
+            r_file_revcomp="exp1_raw_data/r_data_forward_rev_comp/ref_${{num}}_genomes.txt"
+            z_file_revcomp="exp1_raw_data/z_data_forward_rev_comp/ref_${{num}}_genomes.txt"
 
             r=$(head -n1 $r_file | awk '{{print $1}}')
             z=$(head -n1 $z_file | awk '{{print $1}}')
+            rwithrevcomp=$(head -n1 $r_file_revcomp | awk '{{print $1}}')
+            zwithrevcomp=$(head -n1 $z_file_revcomp | awk '{{print $1}}')
 
             rtime=$(head -n1 $r_file | awk '{{print $2}}')
             ztime=$(head -n1 $z_file | awk '{{print $2}}')
+            rwithrevcomptime=$(head -n1 $r_file_revcomp | awk '{{print $2}}')
+            zwithrevcomptime=$(head -n1 $z_file_revcomp | awk '{{print $2}}')
             
-            printf "%d,%d,%.3f,%d,%.3f\n" $num $r $rtime $z $ztime >> {output}
+            printf "%d,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f\n" $num $r $rtime $z $ztime $rwithrevcomp $rwithrevcomptime $zwithrevcomp $zwithrevcomptime >> {output}
         done
         """
 
 
-
-
-
-
-# ./_deps/bigbwt-build/newscanNT.x ../data/yeast.fasta -w 10 -p 100 -f
-# ./src/lz_77_test64 ../data/yeast.fasta
-
-
-
-# "exp1_ref_files/ref_with_{num}_genomes.fna"
-
-#     # Expected Output: numgenomes,r,z,r-time,z-time
-# "exp1_ref_files/ref_with_{num}_genomes.fna"
-
-#     output:
-#         "exp7_combined_refs/dataset_{num}/combined_ref_all.fna.ri"
-#     shell:
-#         """
-#         cd {r_dir} 
-#         ri-buildfasta {base_dir}/{input}
-#         cd {base_dir}
-        # """
-
+# Example of PFP-LZ Output
 # [INFO] 19:50:03 - Message: Window size set to:  10
 # [INFO] 19:50:03 - Message: Computing LZ77
 # [INFO] 19:50:03 - Message: Computing SA, LCP, and DA of dictionary

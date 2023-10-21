@@ -1,4 +1,4 @@
-WORK_ROOT: "/home/oahmed6/scr16_blangme2/oahmed/delta_exp2"
+WORK_ROOT: "/home/oahmed6/scr4_blangme2/oahmed/r_and_z_results"
 REPO_DIRECTORY: "/home/oahmed6/genome_info_curve"
 RINDEX_BUILD_DIRECTORY: "/home/oahmed6/r-index_dev/build"
 LZ77_BUILD_DIRECTORY: "/home/oahmed6/PFP_LZ77/build"
